@@ -1,4 +1,6 @@
-This artefact contains the datasets and code for the paper "Fast Derivation of Shapley based Feature Importances through Feature Extraction Methods for Nanoinformatics".
+This artefact contains the datasets and code for the paper "Fast Derivation of Shapley based Feature Importances through Feature Extraction Methods for Nanoinformatics". We introduce Low Rank Attributions (LRA) which is a methodology to reduce data dimensionality before model training - yet still deriving a consistent feature importance profile/ranking from the model. 
+
+<img src='LRA.png' />
 
 This artefact makes use of jupyter notebooks and has the following python dependencies:
 <ul>

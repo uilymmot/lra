@@ -11,13 +11,6 @@ import matplotlib.pyplot as plt
 from sklearn.manifold import MDS
 from sklearn.manifold import TSNE
 import copy
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import cross_val_score
-from sklearn.decomposition import SparsePCA
-from sklearn.decomposition import NMF
-import sys
-import math
 import scipy.spatial.distance
 from sklearn.metrics.pairwise import pairwise_distances
 import glob
@@ -48,8 +41,8 @@ import glob
 import shap
 from scipy.stats import pearsonr
 
+
 cmap='viridis'
-from LibHelperFuncs import *
 from sklearn.impute import KNNImputer
 rstate = 0
 
@@ -293,7 +286,27 @@ def rf_model_crosseval(X, Y, ntrees):
     score = np.mean(cross_val_score(rf, X, Y, cv=5, scoring='neg_mean_squared_error', n_jobs=-1))
     return np.abs(np.mean(score))
 
-def linereg_model_eval(X, Y):
+def model_crosseval(X, Y, model):
+    '''
+    Evaluates a random forest model cross validated 5 times on the dataset
+
+    Parameters
+    ----------
+    X : ndarray
+        The array of feature vectors (stored rowwise)
+    Y : ndarray
+        The array of target labels
+
+    Returns
+    -------
+    score : float
+        The RMSE score obtained by the random forest model
+
+    '''
+    score = np.mean(cross_val_score(model, X, Y, cv=5, scoring='neg_mean_squared_error', n_jobs=-1))
+    return np.abs(np.mean(score))
+
+def linereg_model_eval(X, Y, tsize=0.9, rstate=0):
     '''
     Evaluates a linear regression model on the whole dataset
 
@@ -311,11 +324,34 @@ def linereg_model_eval(X, Y):
 
     '''
     linreg = LinearRegression()
-    linreg.fit(X,Y)
-    score = np.sqrt(np.mean((linreg.predict(X) - Y) ** 2))
+    X_tr, X_te, Y_tr, Y_te = train_test_split(X, Y, train_size=tsize, random_state=rstate)
+    linreg.fit(X_tr,Y_tr)
+    score = np.sqrt(np.mean((linreg.predict(X_te) - Y_te) ** 2))
+    return score
+
+def model_eval(X, Y, model, tsize=0.9, rstate=0):
+    '''
+    Evaluates a model using a train test split
+
+    Parameters
+    ----------
+    X : ndarray
+        The array of feature vectors (stored rowwise)
+    Y : ndarray
+        The array of target labels
+
+    Returns
+    -------
+    score : float
+        The RMSE score obtained by the linear regression model
+
+    '''
+    X_tr, X_te, Y_tr, Y_te = train_test_split(X, Y, train_size=tsize, random_state=rstate)
+    model.fit(X_tr,Y_tr)
+    score = np.sqrt(np.mean((model.predict(X_te) - Y_te) ** 2))
     return score
     
-def rf_model_eval(X, Y, ntrees):
+def rf_model_eval(X, Y, ntrees=1000, tsize=0.9):
     '''
     Evaluates a random forest model on the whole dataset
 
@@ -332,9 +368,10 @@ def rf_model_eval(X, Y, ntrees):
         The RMSE score obtained by the random forest model
 
     '''
+    X_tr, X_te, Y_tr, Y_te = train_test_split(X, Y, train_size=tsize, random_state=rstate)
     rf = RandomForestRegressor(n_estimators=ntrees, random_state=rstate, n_jobs=-1)
-    rf.fit(X,Y)
-    score = np.sqrt(np.mean((rf.predict(X) - Y) ** 2))
+    rf.fit(X_tr,Y_tr)
+    score = np.sqrt(np.mean((rf.predict(X_te) - Y_te) ** 2))
     return score
     
 def pointwise_shap_contributions(components_of_interest, x_shape, current_shap, dr_components):

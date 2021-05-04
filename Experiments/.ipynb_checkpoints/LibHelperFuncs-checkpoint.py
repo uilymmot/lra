@@ -21,37 +21,14 @@ import math
 import scipy.spatial.distance
 from sklearn.metrics.pairwise import pairwise_distances
 import glob
-import numpy as np
-import pandas as pd
-from sklearn.decomposition import PCA
-import matplotlib.pyplot as plt
-from sklearn.manifold import MDS
-from sklearn.manifold import TSNE
-import copy
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import cross_val_score
-from sklearn.decomposition import SparsePCA
-from sklearn.ensemble import ExtraTreesRegressor
-from sklearn.decomposition import NMF
-from sklearn.ensemble import RandomForestRegressor
-import subprocess
-from sklearn.model_selection import RandomizedSearchCV
-import sys
-import math
-import scipy.spatial.distance
-from sklearn.metrics.pairwise import pairwise_distances
-from sklearn.tree import DecisionTreeRegressor
-import os
-import shutil
-import glob
-import shap
-from scipy.stats import pearsonr
+
+from iterative_spectral_method.src import *
+from iterative_spectral_method.sdr import *
 
 cmap='viridis'
+sys.path.insert(1, '../')
 from LibHelperFuncs import *
 from sklearn.impute import KNNImputer
-rstate = 0
 
 # Takes pandas dataframe
 # scales data into range [0,1]
@@ -215,7 +192,7 @@ def compute_sparse_components(comps, x_shape, nu):
     comps : np.ndarray
         the columnwise basis vectors
     x_shape : int
-        the number of features in the original unprojected data
+        the shape of the original data
     nu : float
         the tuning parameter nu corresonding to weighting penalty
 
@@ -271,27 +248,6 @@ def linereg_model_crosseval(X, Y):
     linreg = LinearRegression()
     score = np.mean(cross_val_score(linreg, X, Y, cv=5, scoring='neg_mean_squared_error', n_jobs=-1))
     return np.abs(np.mean(score))
-    
-def rf_model_crosseval(X, Y, ntrees):
-    '''
-    Evaluates a random forest model cross validated 5 times on the dataset
-
-    Parameters
-    ----------
-    X : ndarray
-        The array of feature vectors (stored rowwise)
-    Y : ndarray
-        The array of target labels
-
-    Returns
-    -------
-    score : float
-        The RMSE score obtained by the random forest model
-
-    '''
-    rf = RandomForestRegressor(n_estimators=ntrees, random_state=rstate, n_jobs=-1)
-    score = np.mean(cross_val_score(rf, X, Y, cv=5, scoring='neg_mean_squared_error', n_jobs=-1))
-    return np.abs(np.mean(score))
 
 def linereg_model_eval(X, Y):
     '''
@@ -313,28 +269,6 @@ def linereg_model_eval(X, Y):
     linreg = LinearRegression()
     linreg.fit(X,Y)
     score = np.sqrt(np.mean((linreg.predict(X) - Y) ** 2))
-    return score
-    
-def rf_model_eval(X, Y, ntrees):
-    '''
-    Evaluates a random forest model on the whole dataset
-
-    Parameters
-    ----------
-    X : ndarray
-        The array of feature vectors (stored rowwise)
-    Y : ndarray
-        The array of target labels
-
-    Returns
-    -------
-    score : float
-        The RMSE score obtained by the random forest model
-
-    '''
-    rf = RandomForestRegressor(n_estimators=ntrees, random_state=rstate, n_jobs=-1)
-    rf.fit(X,Y)
-    score = np.sqrt(np.mean((rf.predict(X) - Y) ** 2))
     return score
     
 def pointwise_shap_contributions(components_of_interest, x_shape, current_shap, dr_components):
@@ -445,7 +379,7 @@ def construct_dict_from_dfrow(dfrow, dfcols):
         tempdict[dfcols[x]] = dfrow[x]
     return tempdict
     
-def uniform_generate_components(data, target, params, k, rstate):
+def uniform_generate_components(data, target, params, rstate):
     '''
     Generates a set of DR components using a parameter list and uniform data
 
@@ -457,8 +391,6 @@ def uniform_generate_components(data, target, params, k, rstate):
         a set of labels Y of data
     params : list
         a list of parameter values from see below
-    k: int
-        The number of components
     rstate : int
         A random state
 
@@ -473,7 +405,7 @@ def uniform_generate_components(data, target, params, k, rstate):
     for x in params:
         passdict[x] = data
 
-    dat = generate_components(passdict, target, params, k, rstate)
+    dat = generate_components(passdict, target, params, rstate)
 
     temp_array = []
     
@@ -645,37 +577,6 @@ def get_indices(columns, values):
         temp.append(np.where(columns == f)[0][0])
     return temp
     
-def compute_carried_shap(s_vals, comps, X):
-    shap_values_r = np.arange(0, X.shape[0]).reshape(-1, 1)
-    carried_shap_vals = np.apply_along_axis((lambda x : s_vals[x].reshape(-1, 1).T @ comps), 1, shap_values_r).reshape(-1, X.shape[1])
-    return carried_shap_vals
-
-def mean_carried_shap(s_vals, comps, X):
-    '''
-
-    Parameters
-    ----------
-    s_vals : np.ndarray
-        The raw shapley values of the lower dimensional data
-    comps : np.ndarray
-        The array of components used in the PCA transformation
-    X : np.ndarray
-        The original data X which was projected using comps
-
-    Returns
-    -------
-    np.ndarray
-        An array of feature importances of the original features in X
-
-    '''
-    
-    sump = np.sqrt(np.mean(comps ** 2, axis=0))
-    sump[np.where(sump == 0)[0]] = 1
-    sump = sump ** 2
-    sump[np.where(sump < 1e-8)[0]] = 1
-    
-    t = compute_carried_shap(s_vals, comps, X) / sump
-    return np.mean(np.abs(t), axis=0) / X.shape[0]
     
 
     
